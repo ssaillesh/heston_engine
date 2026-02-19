@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Data Sources - Heston Engine</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Data page specific styles */
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .data-card {
+            background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+            border: 1px solid #3d3d5c;
+            border-radius: 12px;
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .data-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+
+        .data-card h3 {
+            color: #00d4ff;
+            margin: 0 0 15px 0;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .data-card .source-badge {
+            background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
+            color: #1e1e2e;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .data-card .description {
+            color: #a0a0b0;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+
+        .data-value {
+            background: #15151f;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .data-value .label {
+            color: #808090;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        .data-value .value {
+            color: #00ff88;
+            font-size: 1.5rem;
+            font-weight: bold;
+            font-family: 'Consolas', monospace;
+        }
+
+        .data-value .value.loading {
+            color: #808090;
+            animation: pulse 1.5s infinite;
+        }
+
+        .data-value .value.error {
+            color: #ff6b6b;
+            font-size: 0.9rem;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #3d3d5c;
+            border-radius: 8px;
+            background: #15151f;
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        .input-group button {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
+            border: none;
+            border-radius: 8px;
+            color: #1e1e2e;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .input-group button:hover {
+            transform: scale(1.02);
+        }
+
+        .source-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            font-size: 0.85rem;
+            color: #808090;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #3d3d5c;
+        }
+
+        .nav-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #00d4ff;
+            text-decoration: none;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .nav-back:hover {
+            color: #00ff88;
+        }
+
+        .sources-overview {
+            background: linear-gradient(135deg, #1e1e2e 0%, #252540 100%);
+            border: 2px solid #00d4ff;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .sources-overview h2 {
+            color: #00d4ff;
+            margin: 0 0 20px 0;
+        }
+
+        .sources-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Consolas', monospace;
+        }
+
+        .sources-table th,
+        .sources-table td {
+            padding: 10px 15px;
+            text-align: left;
+            border-bottom: 1px solid #3d3d5c;
+        }
+
+        .sources-table th {
+            color: #00d4ff;
+            font-weight: normal;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+        }
+
+        .sources-table td:first-child {
+            color: #a0a0b0;
+        }
+
+        .sources-table td:last-child {
+            color: #00ff88;
+        }
+
+        .deps-status {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #15151f;
+        }
+
+        .deps-status .dep-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+        }
+
+        .deps-status .installed {
+            color: #00ff88;
+        }
+
+        .deps-status .missing {
+            color: #ff6b6b;
+        }
+
+        .option-chain-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            margin-top: 10px;
+        }
+
+        .option-chain-table th,
+        .option-chain-table td {
+            padding: 8px;
+            text-align: right;
+            border-bottom: 1px solid #3d3d5c;
+        }
+
+        .option-chain-table th:first-child,
+        .option-chain-table td:first-child {
+            text-align: left;
+        }
+
+        .option-chain-table th {
+            color: #808090;
+            font-weight: normal;
+        }
+
+        .mini-chart {
+            height: 60px;
+            background: #15151f;
+            border-radius: 8px;
+            margin-top: 10px;
+            display: flex;
+            align-items: flex-end;
+            padding: 5px;
+            gap: 2px;
+        }
+
+        .mini-chart .bar {
+            flex: 1;
+            background: linear-gradient(180deg, #00d4ff 0%, #00a8cc 100%);
+            border-radius: 2px 2px 0 0;
+            transition: height 0.3s;
+        }
+
+        .heston-estimate {
+            background: linear-gradient(135deg, #0d4d0d 0%, #1a661a 100%);
+            border: 1px solid #00ff88;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .heston-estimate h3 {
+            color: #00ff88;
+            margin: 0 0 15px 0;
+        }
+
+        .params-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .param-box {
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .param-box .name {
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        .param-box .val {
+            color: #fff;
+            font-size: 1.1rem;
+            font-family: 'Consolas', monospace;
+        }
+
+        .use-params-btn {
+            width: 100%;
+            margin-top: 15px;
+            padding: 12px;
+            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+            border: none;
+            border-radius: 8px;
+            color: #1e1e2e;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .use-params-btn:hover {
+            transform: scale(1.01);
+        }
+
+        /* Header Navigation */
+        header {
+            position: relative;
+        }
+
+        .header-nav {
+            position: absolute;
+            top: 1rem;
+            right: 2rem;
+        }
+
+        .header-nav .nav-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+            color: #1e1e2e;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .header-nav .nav-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="header-nav">
+            <a href="/" class="nav-link">⚡ Pricing Engine</a>
+        </nav>
+        <h1>Market Data Sources</h1>
+        <p class="subtitle">
+            Free data sources for Heston Model parameters
+        </p>
+    </header>
+
+    <main>
+
+        <!-- Data Sources Overview -->
+        <section class="sources-overview">
+            <h2>📊 Free Data Sources Map</h2>
+            <table class="sources-table">
+                <thead>
+                    <tr>
+                        <th>Data Type</th>
+                        <th>Source</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Spot Price</td><td>Yahoo Finance (yfinance)</td></tr>
+                    <tr><td>Option Chain</td><td>Yahoo Finance (yfinance)</td></tr>
+                    <tr><td>Risk-Free Rate</td><td>FRED (Federal Reserve)</td></tr>
+                    <tr><td>VIX / Vol Data</td><td>CBOE (official, free)</td></tr>
+                    <tr><td>Dividend Yield</td><td>Yahoo Finance (yfinance)</td></tr>
+                    <tr><td>Treasury Rates</td><td>US Treasury (direct, free)</td></tr>
+                    <tr><td>Historical Vol</td><td>Yahoo Finance (yfinance)</td></tr>
+                </tbody>
+            </table>
+
+            <div class="deps-status" id="deps-status">
+                <strong style="color: #00d4ff;">Dependencies Status:</strong>
+                <div id="deps-list">Loading...</div>
+            </div>
+        </section>
+
+        <!-- Symbol Search -->
+        <section class="panel">
+            <h2>🔍 Fetch Market Data</h2>
+            <div class="input-group">
+                <input type="text" id="symbol-input" placeholder="Enter ticker symbol (e.g., AAPL, SPY, ^SPX)" value="SPY">
+                <button onclick="fetchAllData()">Fetch All Data</button>
+            </div>
+        </section>
+
+        <!-- Data Cards Grid -->
+        <div class="data-grid">
+            <!-- Spot Price Card -->
+            <div class="data-card">
+                <h3>💰 Spot Price <span class="source-badge">Yahoo Finance</span></h3>
+                <p class="description">Current market price for the underlying asset</p>
+                <div class="data-value">
+                    <div class="label">Current Price</div>
+                    <div class="value" id="spot-price">—</div>
+                </div>
+                <div class="source-info" id="spot-info">
+                    <span>Symbol: —</span>
+                    <span>Exchange: —</span>
+                </div>
+            </div>
+
+            <!-- Dividend Yield Card -->
+            <div class="data-card">
+                <h3>📈 Dividend Yield <span class="source-badge">Yahoo Finance</span></h3>
+                <p class="description">Annual dividend yield (q parameter)</p>
+                <div class="data-value">
+                    <div class="label">Dividend Yield</div>
+                    <div class="value" id="div-yield">—</div>
+                </div>
+                <div class="source-info">
+                    <span id="div-rate">Rate: —</span>
+                    <span id="ex-date">Ex-Date: —</span>
+                </div>
+            </div>
+
+            <!-- Historical Volatility Card -->
+            <div class="data-card">
+                <h3>📉 Historical Volatility <span class="source-badge">Yahoo Finance</span></h3>
+                <p class="description">Realized volatility from historical prices (V₀ estimate)</p>
+                <div class="data-value">
+                    <div class="label">Annualized Vol</div>
+                    <div class="value" id="hist-vol">—</div>
+                </div>
+                <div class="mini-chart" id="vol-chart"></div>
+            </div>
+
+            <!-- VIX Card -->
+            <div class="data-card">
+                <h3>⚡ VIX Index <span class="source-badge">CBOE</span></h3>
+                <p class="description">Market implied volatility (θ estimate)</p>
+                <div class="data-value">
+                    <div class="label">VIX Current</div>
+                    <div class="value" id="vix-value">—</div>
+                </div>
+                <div class="source-info" id="vix-info">
+                    <span>High: —</span>
+                    <span>Low: —</span>
+                </div>
+            </div>
+
+            <!-- Treasury Rates Card -->
+            <div class="data-card">
+                <h3>🏛️ Risk-Free Rate <span class="source-badge">FRED / Treasury</span></h3>
+                <p class="description">US Treasury rates (r parameter)</p>
+                <div class="data-value">
+                    <div class="label">3-Month Treasury</div>
+                    <div class="value" id="rf-rate">—</div>
+                </div>
+                <div class="source-info" id="rate-info">
+                    <span>1Y: —</span>
+                    <span>10Y: —</span>
+                </div>
+                <p style="font-size: 0.8rem; color: #808090; margin-top: 10px;">
+                    <a href="https://fred.stlouisfed.org/docs/api/api_key.html" target="_blank" style="color: #00d4ff;">
+                        Get free FRED API key →
+                    </a>
+                </p>
+            </div>
+
+            <!-- Option Chain Card -->
+            <div class="data-card" style="grid-column: span 2;">
+                <h3>📋 Option Chain <span class="source-badge">Yahoo Finance</span></h3>
+                <p class="description">Live option prices for calibration</p>
+                <div class="input-group">
+                    <select id="expiration-select" style="flex: 1; padding: 12px; background: #15151f; border: 1px solid #3d3d5c; border-radius: 8px; color: #fff;">
+                        <option value="">Select expiration...</option>
+                    </select>
+                    <button onclick="fetchOptions()">Load Options</button>
+                </div>
+                <div id="option-chain-container">
+                    <p style="color: #808090; text-align: center;">Enter symbol and click "Fetch All Data"</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Heston Parameters Estimate -->
+        <div class="heston-estimate" id="heston-estimate" style="display: none;">
+            <h3>🎯 Estimated Heston Parameters</h3>
+            <p style="color: #a0a0b0; margin-bottom: 15px;">Initial parameter estimates based on market data (calibration recommended)</p>
+            <div class="params-grid" id="estimated-params">
+                <!-- Filled by JS -->
+            </div>
+            <button class="use-params-btn" onclick="useEstimatedParams()">
+                Use These Parameters in Pricing Engine →
+            </button>
+        </div>
+    </main>
+
+    <footer style="text-align: center; padding: 40px; color: #808090; font-size: 0.85rem;">
+        <p>Data provided by Yahoo Finance, FRED, and CBOE. For informational purposes only.</p>
+        <p>
+            <a href="https://finance.yahoo.com" target="_blank" style="color: #00d4ff;">Yahoo Finance</a> |
+            <a href="https://fred.stlouisfed.org" target="_blank" style="color: #00d4ff;">FRED</a> |
+            <a href="https://www.cboe.com" target="_blank" style="color: #00d4ff;">CBOE</a>
+        </p>
+    </footer>
+
+    <script>
+        const API_BASE = '/api/data';
+        let estimatedParams = null;
+
+        // Check dependencies on load
+        async function checkDependencies() {
+            try {
+                const resp = await fetch(`${API_BASE}/check`);
+                const data = await resp.json();
+                
+                const depsList = document.getElementById('deps-list');
+                if (data.success) {
+                    const deps = data.dependencies;
+                    depsList.innerHTML = `
+                        <div class="dep-item">
+                            <span>yfinance</span>
+                            <span class="${deps.yfinance ? 'installed' : 'missing'}">${deps.yfinance ? '✓ Installed' : '✗ Missing'}</span>
+                        </div>
+                        <div class="dep-item">
+                            <span>pandas</span>
+                            <span class="${deps.pandas ? 'installed' : 'missing'}">${deps.pandas ? '✓ Installed' : '✗ Missing'}</span>
+                        </div>
+                        <div class="dep-item">
+                            <span>fredapi</span>
+                            <span class="${deps.fredapi ? 'installed' : 'missing'}">${deps.fredapi ? '✓ Installed' : '✗ Missing (optional)'}</span>
+                        </div>
+                    `;
+                    
+                    if (deps.missing && deps.missing.length > 0) {
+                        depsList.innerHTML += `
+                            <p style="margin-top: 10px; color: #ff6b6b;">
+                                Install missing: <code>pip install ${deps.missing.join(' ')}</code>
+                            </p>
+                        `;
+                    }
+                }
+            } catch (e) {
+                document.getElementById('deps-list').innerHTML = '<span class="missing">Error checking dependencies</span>';
+            }
+        }
+
+        // Fetch all data for a symbol
+        async function fetchAllData() {
+            const symbol = document.getElementById('symbol-input').value.trim();
+            if (!symbol) {
+                alert('Please enter a symbol');
+                return;
+            }
+
+            // Set loading states
+            setLoading('spot-price');
+            setLoading('div-yield');
+            setLoading('hist-vol');
+            setLoading('vix-value');
+            setLoading('rf-rate');
+
+            // Fetch spot price
+            fetchSpot(symbol);
+            
+            // Fetch dividend
+            fetchDividend(symbol);
+            
+            // Fetch historical vol
+            fetchHistoricalVol(symbol);
+            
+            // Fetch VIX
+            fetchVIX();
+            
+            // Fetch rates (fallback)
+            fetchRates();
+            
+            // Fetch options expirations
+            fetchOptionsExpirations(symbol);
+            
+            // Fetch parameter estimates
+            fetchEstimate(symbol);
+        }
+
+        function setLoading(elementId) {
+            const el = document.getElementById(elementId);
+            el.textContent = 'Loading...';
+            el.classList.add('loading');
+            el.classList.remove('error');
+        }
+
+        function setValue(elementId, value, isError = false) {
+            const el = document.getElementById(elementId);
+            el.textContent = value;
+            el.classList.remove('loading');
+            if (isError) el.classList.add('error');
+        }
+
+        async function fetchSpot(symbol) {
+            try {
+                const resp = await fetch(`${API_BASE}/spot/${symbol}`);
+                const data = await resp.json();
+                
+                if (data.success) {
+                    setValue('spot-price', `$${data.price.toFixed(2)}`);
+                    document.getElementById('spot-info').innerHTML = `
+                        <span>Symbol: ${data.symbol}</span>
+                        <span>Exchange: ${data.exchange}</span>
+                    `;
+                } else {
+                    setValue('spot-price', data.error || 'Error', true);
+                }
+            } catch (e) {
+                setValue('spot-price', e.message, true);
+            }
+        }
+
+        async function fetchDividend(symbol) {
+            try {
+                const resp = await fetch(`${API_BASE}/dividend/${symbol}`);
+                const data = await resp.json();
+                
+                if (data.success) {
+                    const yieldPct = (data.dividend_yield * 100).toFixed(2);
+                    setValue('div-yield', `${yieldPct}%`);
+                    document.getElementById('div-rate').textContent = `Rate: $${data.dividend_rate?.toFixed(2) || '0.00'}`;
+                    document.getElementById('ex-date').textContent = `Ex-Date: ${data.ex_dividend_date || 'N/A'}`;
+                } else {
+                    setValue('div-yield', data.error || 'Error', true);
+                }
+            } catch (e) {
+                setValue('div-yield', e.message, true);
+            }
+        }
+
+        async function fetchHistoricalVol(symbol) {
+            try {
+                const resp = await fetch(`${API_BASE}/volatility/${symbol}?period=1y&window=21`);
+                const data = await resp.json();
+                
+                if (data.success) {
+                    setValue('hist-vol', `${data.volatility_pct.toFixed(2)}%`);
+                    
+                    // Draw mini chart
+                    const chart = document.getElementById('vol-chart');
+                    if (data.rolling_volatility && data.rolling_volatility.length > 0) {
+                        const vols = data.rolling_volatility;
+                        const max = Math.max(...vols);
+                        chart.innerHTML = vols.map(v => 
+                            `<div class="bar" style="height: ${(v/max) * 50}px"></div>`
+                        ).join('');
+                    }
+                } else {
+                    setValue('hist-vol', data.error || 'Error', true);
+                }
+            } catch (e) {
+                setValue('hist-vol', e.message, true);
+            }
+        }
+
+        async function fetchVIX() {
+            try {
+                const resp = await fetch(`${API_BASE}/vix`);
+                const data = await resp.json();
+                
+                if (data.success && data.vix) {
+                    setValue('vix-value', data.vix.current?.toFixed(2) || '—');
+                    document.getElementById('vix-info').innerHTML = `
+                        <span>High: ${data.vix.high?.toFixed(2) || '—'}</span>
+                        <span>Low: ${data.vix.low?.toFixed(2) || '—'}</span>
+                    `;
+                } else {
+                    setValue('vix-value', data.error || 'Error', true);
+                }
+            } catch (e) {
+                setValue('vix-value', e.message, true);
+            }
+        }
+
+        async function fetchRates() {
+            try {
+                const resp = await fetch(`${API_BASE}/rates`);
+                const data = await resp.json();
+                
+                if (data.success && data.rates) {
+                    const r3m = data.rates['3m'];
+                    setValue('rf-rate', `${(r3m * 100).toFixed(2)}%`);
+                    document.getElementById('rate-info').innerHTML = `
+                        <span>1Y: ${(data.rates['1y'] * 100).toFixed(2)}%</span>
+                        <span>10Y: ${(data.rates['10y'] * 100).toFixed(2)}%</span>
+                    `;
+                } else {
+                    // Use fallback
+                    setValue('rf-rate', '5.00% (fallback)');
+                    document.getElementById('rate-info').innerHTML = `
+                        <span colspan="2">FRED API key needed for live rates</span>
+                    `;
+                }
+            } catch (e) {
+                setValue('rf-rate', '5.00% (fallback)');
+            }
+        }
+
+        async function fetchOptionsExpirations(symbol) {
+            try {
+                const resp = await fetch(`${API_BASE}/options/${symbol}`);
+                const data = await resp.json();
+                
+                if (data.success && data.all_expirations) {
+                    const select = document.getElementById('expiration-select');
+                    select.innerHTML = '<option value="">Select expiration...</option>';
+                    data.all_expirations.forEach(exp => {
+                        select.innerHTML += `<option value="${exp}">${exp}</option>`;
+                    });
+                    
+                    // Show first expiration's data
+                    if (data.calls && data.puts) {
+                        displayOptionChain(data);
+                    }
+                }
+            } catch (e) {
+                console.error('Options fetch error:', e);
+            }
+        }
+
+        async function fetchOptions() {
+            const symbol = document.getElementById('symbol-input').value.trim();
+            const expiration = document.getElementById('expiration-select').value;
+            
+            if (!symbol || !expiration) return;
+
+            try {
+                const resp = await fetch(`${API_BASE}/options/${symbol}?expiration=${expiration}`);
+                const data = await resp.json();
+                
+                if (data.success) {
+                    displayOptionChain(data);
+                }
+            } catch (e) {
+                console.error('Options fetch error:', e);
+            }
+        }
+
+        function displayOptionChain(data) {
+            const container = document.getElementById('option-chain-container');
+            
+            if (!data.calls || !data.calls.strikes || data.calls.strikes.length === 0) {
+                container.innerHTML = '<p style="color: #808090;">No option data available</p>';
+                return;
+            }
+
+            // Show top 10 strikes around ATM
+            const spot = data.spot_price || 100;
+            const strikes = data.calls.strikes;
+            const atmIdx = strikes.findIndex(k => k >= spot);
+            const start = Math.max(0, atmIdx - 5);
+            const end = Math.min(strikes.length, atmIdx + 5);
+
+            let html = `
+                <p style="color: #00d4ff; margin-bottom: 10px;">Expiration: ${data.expiration} | Spot: $${spot.toFixed(2)}</p>
+                <table class="option-chain-table">
+                    <thead>
+                        <tr>
+                            <th>Strike</th>
+                            <th>Call Bid</th>
+                            <th>Call Ask</th>
+                            <th>Call IV</th>
+                            <th>Put Bid</th>
+                            <th>Put Ask</th>
+                            <th>Put IV</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            for (let i = start; i < end; i++) {
+                const isATM = strikes[i] === spot || (i === atmIdx);
+                const rowStyle = isATM ? 'background: rgba(0,212,255,0.1);' : '';
+                
+                html += `
+                    <tr style="${rowStyle}">
+                        <td style="color: #00d4ff; font-weight: bold;">$${strikes[i].toFixed(0)}</td>
+                        <td>$${data.calls.bids[i]?.toFixed(2) || '—'}</td>
+                        <td>$${data.calls.asks[i]?.toFixed(2) || '—'}</td>
+                        <td>${(data.calls.implied_volatility[i] * 100)?.toFixed(1) || '—'}%</td>
+                        <td>$${data.puts.bids[i]?.toFixed(2) || '—'}</td>
+                        <td>$${data.puts.asks[i]?.toFixed(2) || '—'}</td>
+                        <td>${(data.puts.implied_volatility[i] * 100)?.toFixed(1) || '—'}%</td>
+                    </tr>
+                `;
+            }
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        async function fetchEstimate(symbol) {
+            try {
+                const resp = await fetch(`${API_BASE}/estimate/${symbol}`);
+                const data = await resp.json();
+                
+                if (data.success && data.estimated_params) {
+                    estimatedParams = data.estimated_params;
+                    
+                    const container = document.getElementById('estimated-params');
+                    const p = data.estimated_params;
+                    
+                    container.innerHTML = `
+                        <div class="param-box"><div class="name">S₀</div><div class="val">${p.S0?.toFixed(2)}</div></div>
+                        <div class="param-box"><div class="name">V₀</div><div class="val">${p.V0?.toFixed(4)}</div></div>
+                        <div class="param-box"><div class="name">κ</div><div class="val">${p.kappa?.toFixed(2)}</div></div>
+                        <div class="param-box"><div class="name">θ</div><div class="val">${p.theta?.toFixed(4)}</div></div>
+                        <div class="param-box"><div class="name">σ</div><div class="val">${p.sigma?.toFixed(2)}</div></div>
+                        <div class="param-box"><div class="name">ρ</div><div class="val">${p.rho?.toFixed(2)}</div></div>
+                        <div class="param-box"><div class="name">r</div><div class="val">${(p.r * 100)?.toFixed(2)}%</div></div>
+                        <div class="param-box"><div class="name">q</div><div class="val">${(p.q * 100)?.toFixed(2)}%</div></div>
+                    `;
+                    
+                    document.getElementById('heston-estimate').style.display = 'block';
+                }
+            } catch (e) {
+                console.error('Estimate fetch error:', e);
+            }
+        }
+
+        function useEstimatedParams() {
+            if (!estimatedParams) {
+                alert('Please fetch data for a symbol first (click "Fetch Estimate" or "Fetch All Data")');
+                return;
+            }
+            
+            // Encode params in URL hash (more reliable than localStorage across page loads)
+            const p = estimatedParams;
+            const params = new URLSearchParams({
+                S0: p.S0,
+                V0: p.V0,
+                kappa: p.kappa,
+                theta: p.theta,
+                sigma: p.sigma,
+                rho: p.rho,
+                r: p.r,
+                q: p.q
+            });
+            
+            // Redirect with params in hash
+            window.location.href = '/#' + params.toString();
+        }
+
+        // Check dependencies on load
+        checkDependencies();
+
+        // Enter key support
+        document.getElementById('symbol-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') fetchAllData();
+        });
+    </script>
+</body>
+</html>

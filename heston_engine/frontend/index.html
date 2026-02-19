@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heston Stochastic Volatility Model Engine</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Plotly.js for 3D visualizations -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body>
+    <header>
+        <nav class="header-nav">
+            <a href="/data" class="nav-link">📊 Market Data</a>
+        </nav>
+        <h1>Heston Stochastic Volatility Model Engine</h1>
+        <p class="subtitle">
+            dS = (r-q)S dt + √V S dW<sub>S</sub> &nbsp;|&nbsp;
+            dV = κ(θ-V)dt + σ√V dW<sub>V</sub> &nbsp;|&nbsp;
+            Corr(dW<sub>S</sub>, dW<sub>V</sub>) = ρ
+        </p>
+    </header>
+
+    <main>
+        <!-- Parameter Panel -->
+        <section class="panel" id="params-panel">
+            <h2>Model Parameters</h2>
+            <div class="param-grid">
+                <div class="param-group">
+                    <h3>Heston Parameters</h3>
+                    <div class="param-row">
+                        <label for="kappa">κ (Mean Reversion)</label>
+                        <input type="number" id="kappa" value="2.0" step="0.1" min="0.01">
+                        <span class="hint">Speed of variance mean reversion</span>
+                    </div>
+                    <div class="param-row">
+                        <label for="theta">θ (Long-Term Var)</label>
+                        <input type="number" id="theta" value="0.04" step="0.01" min="0.001">
+                        <span class="hint">Long-term variance level</span>
+                    </div>
+                    <div class="param-row">
+                        <label for="sigma">σ (Vol of Vol)</label>
+                        <input type="number" id="sigma" value="0.3" step="0.05" min="0.01">
+                        <span class="hint">Volatility of variance</span>
+                    </div>
+                    <div class="param-row">
+                        <label for="rho">ρ (Correlation)</label>
+                        <input type="number" id="rho" value="-0.7" step="0.1" min="-0.99" max="0.99">
+                        <span class="hint">Correlation between S and V</span>
+                    </div>
+                </div>
+
+                <div class="param-group">
+                    <h3>Market Parameters</h3>
+                    <div class="param-row">
+                        <label for="S0">S₀ (Spot)</label>
+                        <input type="number" id="S0" value="100" step="1" min="1">
+                    </div>
+                    <div class="param-row">
+                        <label for="V0">V₀ (Initial Var)</label>
+                        <input type="number" id="V0" value="0.04" step="0.01" min="0.001">
+                    </div>
+                    <div class="param-row">
+                        <label for="r">r (Risk-Free Rate)</label>
+                        <input type="number" id="r" value="0.05" step="0.01">
+                    </div>
+                    <div class="param-row">
+                        <label for="q">q (Dividend Yield)</label>
+                        <input type="number" id="q" value="0.02" step="0.01">
+                    </div>
+                </div>
+
+                <div class="param-group">
+                    <h3>Option Parameters</h3>
+                    <div class="param-row">
+                        <label for="K">K (Strike)</label>
+                        <input type="number" id="K" value="100" step="1" min="1">
+                    </div>
+                    <div class="param-row">
+                        <label for="T">T (Maturity Years)</label>
+                        <input type="number" id="T" value="1.0" step="0.1" min="0.01">
+                    </div>
+                    <div class="param-row">
+                        <label for="option-type">Type</label>
+                        <select id="option-type">
+                            <option value="call">Call</option>
+                            <option value="put">Put</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feller Condition Indicator -->
+            <div id="feller-indicator" class="feller-ok">
+                <span class="feller-icon">✓</span>
+                <span class="feller-text">Feller Condition Satisfied</span>
+                <span class="feller-ratio" id="feller-ratio">2κθ/σ² = 1.78</span>
+            </div>
+        </section>
+
+        <!-- Action Buttons -->
+        <section class="action-buttons">
+            <button id="btn-price" class="btn-primary">Price Option</button>
+            <button id="btn-greeks" class="btn-secondary">Calculate Greeks</button>
+            <button id="btn-surface" class="btn-secondary">Vol Surface</button>
+            <button id="btn-paths" class="btn-secondary">MC Paths</button>
+            <button id="btn-compare" class="btn-secondary">Compare Methods</button>
+            <button id="btn-validate" class="btn-secondary">Validate Model</button>
+        </section>
+
+        <!-- Results Panel -->
+        <section class="panel" id="results-panel">
+            <h2>Results</h2>
+            
+            <!-- Pricing Results -->
+            <div id="pricing-results" class="result-section">
+                <h3>Option Price</h3>
+                <div class="price-display">
+                    <span class="price-label">Price:</span>
+                    <span id="price-value" class="price-value">--</span>
+                </div>
+                <div id="price-details" class="details"></div>
+            </div>
+
+            <!-- Greeks Results -->
+            <div id="greeks-results" class="result-section hidden">
+                <h3>Greeks</h3>
+                <div class="greeks-grid">
+                    <div class="greek-card">
+                        <span class="greek-name">Delta (Δ)</span>
+                        <span id="greek-delta" class="greek-value">--</span>
+                    </div>
+                    <div class="greek-card">
+                        <span class="greek-name">Gamma (Γ)</span>
+                        <span id="greek-gamma" class="greek-value">--</span>
+                    </div>
+                    <div class="greek-card">
+                        <span class="greek-name">Vega (ν)</span>
+                        <span id="greek-vega" class="greek-value">--</span>
+                    </div>
+                    <div class="greek-card">
+                        <span class="greek-name">Theta (Θ)</span>
+                        <span id="greek-theta" class="greek-value">--</span>
+                    </div>
+                    <div class="greek-card">
+                        <span class="greek-name">Rho (ρ)</span>
+                        <span id="greek-rho" class="greek-value">--</span>
+                    </div>
+                    <div class="greek-card">
+                        <span class="greek-name">Vanna</span>
+                        <span id="greek-vanna" class="greek-value">--</span>
+                    </div>
+                    <div class="greek-card">
+                        <span class="greek-name">Volga</span>
+                        <span id="greek-volga" class="greek-value">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comparison Results -->
+            <div id="compare-results" class="result-section hidden">
+                <h3>Method Comparison</h3>
+                <table class="compare-table">
+                    <thead>
+                        <tr>
+                            <th>Method</th>
+                            <th>Price</th>
+                            <th>Time (ms)</th>
+                            <th>Diff vs Analytical</th>
+                        </tr>
+                    </thead>
+                    <tbody id="compare-tbody">
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Validation Results -->
+            <div id="validation-results" class="result-section hidden">
+                <h3>Model Validation</h3>
+                <div id="validation-content"></div>
+            </div>
+        </section>
+
+        <!-- Visualization Panel -->
+        <section class="panel" id="viz-panel">
+            <h2>Visualization</h2>
+            <div class="viz-tabs">
+                <button class="viz-tab active" data-tab="surface-chart">Vol Surface</button>
+                <button class="viz-tab" data-tab="paths-chart">MC Paths</button>
+                <button class="viz-tab" data-tab="variance-chart">Variance Paths</button>
+            </div>
+            <div id="surface-chart" class="chart-container active"></div>
+            <div id="paths-chart" class="chart-container"></div>
+            <div id="variance-chart" class="chart-container"></div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Heston Stochastic Volatility Model Engine | Built with Python, Flask, and Plotly.js</p>
+    </footer>
+
+    <script src="app.js?v=2"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd \"/Users/saillesh/Desktop/heston 2\" && python test_fix\\.py$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
