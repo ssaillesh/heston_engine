@@ -59,6 +59,28 @@ frontend/
 
 ### Key Features
 - Automatic Feller condition enforcement (2κθ/σ² ≥ 1)
+
+## 2. Quick start
+
+### Install
+
+```bash
+cd heston_engine
+pip install -r requirements.txt
+```
+
+### Run
+
+```bash
+python run.py
+```
+
+Optional:
+
+```bash
+python run.py --test
+python run.py --demo
+```
 - Put-call parity validation (error monitoring)
 - Multi-method consensus testing
 - Real-time volatility surface generation
