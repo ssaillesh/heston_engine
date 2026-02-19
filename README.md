@@ -182,7 +182,7 @@ pip install -r requirements.txt
 ### 2) Run the application
 
 ```bash
-python run.py
+PYTHONPATH=.. python3 run.py
 ```
 
 Default server:
@@ -194,120 +194,9 @@ Default server:
 ```bash
 python run.py --test
 python run.py --demo
-python run.py --port 8000
-python run.py --no-debug
 ```
-
----
-
-## Usage Guide (Web UI)
-
-From the main page:
-
-1. Set model parameters (`kappa`, `theta`, `sigma`, `rho`, `r`, `q`, `S0`, `V0`)
-2. Set option inputs (`K`, `T`, option type)
-3. Choose action:
-	 - **Price Option**
-	 - **Calculate Greeks**
-	 - **Vol Surface**
-	 - **MC Paths**
-	 - **Compare Methods**
-	 - **Validate Model**
-
-The interface also shows a live **Feller condition indicator**:
-- Green: likely well-behaved variance positivity regime
-- Warning/Fail states: potentially unstable variance behavior under chosen params
-
----
-
-## API Reference
-
-Base URL: `http://localhost:5000`
-
-### Core endpoints
-
-- `GET /api/health`
-- `POST /api/price`
-- `POST /api/greeks`
-- `POST /api/surface`
-- `POST /api/paths`
-- `POST /api/compare`
-- `POST /api/validate`
-
-### Market data endpoints
-
-- `GET /api/data/check`
-- `GET /api/data/spot/<symbol>`
-- `GET /api/data/dividend/<symbol>`
-- `GET /api/data/volatility/<symbol>?period=1y&window=21`
-- `GET /api/data/options/<symbol>?expiration=YYYY-MM-DD`
-- `GET /api/data/vix`
-- `GET /api/data/rates?api_key=<FRED_KEY>`
-- `GET /api/data/all/<symbol>?fred_api_key=<FRED_KEY>`
-- `GET /api/data/estimate/<symbol>?fred_api_key=<FRED_KEY>`
-
-### Minimal pricing request example
-
-```bash
-curl -X POST http://localhost:5000/api/price \
-	-H "Content-Type: application/json" \
-	-d '{
-		"method": "analytical",
-		"params": {
-			"kappa": 2.0,
-			"theta": 0.04,
-			"sigma": 0.3,
-			"rho": -0.7,
-			"r": 0.05,
-			"q": 0.02,
-			"S0": 100.0,
-			"V0": 0.04
-		},
-		"K": 100,
-		"T": 1.0,
-		"option_type": "call"
-	}'
-```
-
----
-
-## Validation & Testing
-
-Run suite:
-
-```bash
-python run.py --test
-```
-
-Validation coverage includes:
-- Put-call parity
-- Black-Scholes limiting behavior
-- Cross-method convergence (Analytical vs PDE vs MC)
-- Greeks sign sanity checks
-- Monte Carlo statistical consistency checks
-
----
-
-## Performance Notes
-
-- Analytical pricing is typically the fastest for vanilla options.
-- PDE offers deterministic grid-based control at higher computational cost.
-- Monte Carlo cost scales with `n_paths × n_steps`.
-- For UI responsiveness, very large path counts are expensive to plot in-browser.
-- API `POST /api/paths` currently enforces an internal cap on returned path count for visualization safety.
-
----
-
-## Roadmap Ideas
-
-- Calibration workflow examples and benchmark datasets
-- American/exotic option extensions
-- Docker packaging for one-command deployment
-- CI pipeline with automated numerical regression tests
-- Optional auth/rate limits for public API deployment
-
----
-
-## License
-
-MIT (or your preferred license; update this section if needed).
+- Put-call parity validation (error monitoring)
+- Multi-method consensus testing
+- Real-time volatility surface generation
+- Live market data calibration pipeline
+- Greeks computation (Δ, Γ, Vega via finite differences)

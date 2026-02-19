@@ -182,7 +182,7 @@ pip install -r requirements.txt
 ### 2) Run the application
 
 ```bash
-python run.py
+PYTHONPATH=.. python3 run.py
 ```
 
 Default server:
@@ -192,10 +192,10 @@ Default server:
 ### 3) Optional run modes
 
 ```bash
-python run.py --test
-python run.py --demo
-python run.py --port 8000
-python run.py --no-debug
+PYTHONPATH=.. python3 run.py --test
+PYTHONPATH=.. python3 run.py --demo
+PYTHONPATH=.. python3 run.py --port 8000
+PYTHONPATH=.. python3 run.py --no-debug
 ```
 
 ---
