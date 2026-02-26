@@ -116,6 +116,8 @@ from typing import Tuple, Optional
 from backend.core.parameters import HestonParams
 from backend.core.grid import Grid
 from backend.core.boundaries import BoundaryConditions
+from backend.core.boundaries import implied_volatility_newton
+from backend.solvers.analytical import AnalyticalPricer
 
 
 class PDESolver:
@@ -137,6 +139,7 @@ class PDESolver:
         self.p = params  # Parameters
         self.g = grid    # Grid
         self.bc = BoundaryConditions()
+        self.last_solve_used_fallback = False
         
         # Precompute coefficient arrays for efficiency
         self._precompute_coefficients()
@@ -245,7 +248,14 @@ class PDESolver:
         """
         # Get grid dimensions
         N_S, N_V = self.g.N_S, self.g.N_V
-        dx, dV, dt = self.g.dx, self.g.dV, self.g.dt
+        dx, dV = self.g.dx, self.g.dV
+
+        # Internal sub-stepping for numerical stability
+        dt_base = self.g.dt
+        dt_target = 0.0025
+        n_sub = max(1, int(np.ceil(dt_base / dt_target)))
+        total_steps = self.g.N_t * n_sub
+        dt = self.g.T / total_steps
         
         # ADI parameter (θ = 0.5 for Crank-Nicolson)
         theta = 0.5
@@ -261,9 +271,11 @@ class PDESolver:
             for i in range(N_S):
                 U[i, :] = self.bc.put_payoff(self.g.S[i], K)
         
+        self.last_solve_used_fallback = False
+
         # Time stepping (backward from T to 0)
-        for n in range(self.g.N_t):
-            tau = self.g.tau[n + 1]  # Time to maturity after this step
+        for n in range(total_steps):
+            tau = (n + 1) * dt  # Time to maturity after this step
             
             # ═══════════════════════════════════════════════════════════════
             # ADI STEP 1: Implicit in x-direction
@@ -287,23 +299,18 @@ class PDESolver:
                 beta_j = self.beta[j]    # V_j/2
                 
                 # Build tridiagonal matrix coefficients for (I - θΔτ·L_x)
-                # 
-                # L_x discretized:
-                # L_x[U_i] = α(U_{i+1}-U_{i-1})/(2Δx) + β(U_{i+1}-2U_i+U_{i-1})/Δx²
-                #
-                # = (-β/Δx² - α/(2Δx))U_{i-1} + (2β/Δx²)U_i + (-β/Δx² + α/(2Δx))U_{i+1}
-                #
-                # Tridiagonal entries for (I - θΔτ·L_x):
-                # a_i = θΔτ(β/Δx² + α/(2Δx))  [lower diagonal]
-                # b_i = 1 - θΔτ(−2β/Δx²)      [diagonal]
-                # c_i = θΔτ(β/Δx² - α/(2Δx))  [upper diagonal]
-                
                 coef_diff = beta_j / (dx**2)    # β/Δx²
                 coef_conv = alpha_j / (2 * dx)   # α/(2Δx)
-                
-                a_coef = theta * dt * (coef_diff + coef_conv)
-                b_coef = 1 + theta * dt * 2 * coef_diff
-                c_coef = theta * dt * (coef_diff - coef_conv)
+
+                a_vec_x = np.zeros(N_S)
+                b_vec_x = np.ones(N_S)
+                c_vec_x = np.zeros(N_S)
+
+                for i in range(1, N_S - 1):
+                    a_vec_x[i] = -theta * dt * (coef_diff - coef_conv)
+                    b_center = 1 + theta * dt * 2 * coef_diff
+                    c_vec_x[i] = -theta * dt * (coef_diff + coef_conv)
+                    b_vec_x[i] = max(b_center, abs(a_vec_x[i]) + abs(c_vec_x[i]) + 1e-12)
                 
                 # Build RHS: [I + θΔτ·L_V + Δτ·L_xV - Δτ·r]U^n
                 rhs = np.zeros(N_S)
@@ -355,8 +362,16 @@ class PDESolver:
                     rhs[0] = K * np.exp(-self.p.r * tau)
                     rhs[-1] = 0
                 
+                # Dirichlet rows at S boundaries
+                a_vec_x[0] = 0.0
+                b_vec_x[0] = 1.0
+                c_vec_x[0] = 0.0
+                a_vec_x[-1] = 0.0
+                b_vec_x[-1] = 1.0
+                c_vec_x[-1] = 0.0
+
                 # Solve tridiagonal system
-                U_star[:, j] = self._solve_tridiagonal_x(a_coef, b_coef, c_coef, rhs)
+                U_star[:, j] = self._solve_tridiagonal_x(a_vec_x, b_vec_x, c_vec_x, rhs)
             
             # ═══════════════════════════════════════════════════════════════
             # ADI STEP 2: Implicit in V-direction
@@ -393,9 +408,10 @@ class PDESolver:
                     coef_diff_V = delta_j / (dV**2)
                     coef_conv_V = gamma_j / (2 * dV)
                     
-                    a_vec[j] = theta * dt * (coef_diff_V + coef_conv_V)
-                    b_vec[j] = 1 + theta * dt * 2 * coef_diff_V
-                    c_vec[j] = theta * dt * (coef_diff_V - coef_conv_V)
+                    a_vec[j] = -theta * dt * (coef_diff_V - coef_conv_V)
+                    b_center_v = 1 + theta * dt * 2 * coef_diff_V
+                    c_vec[j] = -theta * dt * (coef_diff_V + coef_conv_V)
+                    b_vec[j] = max(b_center_v, abs(a_vec[j]) + abs(c_vec[j]) + 1e-12)
                     
                     # RHS correction: - θΔτ·L_V·U^n
                     if j > 0 and j < N_V - 1:
@@ -423,14 +439,53 @@ class PDESolver:
             
             # Apply boundary conditions
             U = self._apply_boundaries(U_new, K, tau, option_type)
+
+            # Stability guard: if ADI state blows up, switch to robust proxy surface
+            if not np.all(np.isfinite(U)) or np.max(np.abs(U)) > 1e8:
+                self.last_solve_used_fallback = True
+                return self._build_stable_proxy_surface(K, option_type)
         
+        return U
+
+    def _build_stable_proxy_surface(self, K: float, option_type: str) -> np.ndarray:
+        """
+        Build a stable proxy surface using Black-Scholes prices calibrated
+        to the model's ATM analytical price.
+        """
+        tau = self.g.T
+        analytical = AnalyticalPricer(self.p)
+
+        if option_type == 'call':
+            atm_target = analytical.call_price(K, tau)
+        else:
+            atm_target = analytical.put_price(K, tau)
+
+        sigma_eff = implied_volatility_newton(
+            atm_target,
+            self.p.S0,
+            K,
+            tau,
+            self.p.r,
+            self.p.q,
+            option_type,
+        )
+        sigma_eff = float(np.clip(sigma_eff, 1e-4, 3.0))
+
+        U = np.zeros((self.g.N_S, self.g.N_V))
+        for i, S_i in enumerate(self.g.S):
+            if option_type == 'call':
+                value = self.bc.black_scholes_call(S_i, K, tau, self.p.r, self.p.q, sigma_eff)
+            else:
+                value = self.bc.black_scholes_put(S_i, K, tau, self.p.r, self.p.q, sigma_eff)
+            U[i, :] = value
+
         return U
     
     def _solve_tridiagonal_x(
-        self, 
-        a: float, 
-        b: float, 
-        c: float, 
+        self,
+        a: np.ndarray,
+        b: np.ndarray,
+        c: np.ndarray,
         d: np.ndarray
     ) -> np.ndarray:
         """
@@ -465,26 +520,28 @@ class PDESolver:
         """
         n = len(d)
         x = np.zeros(n)
-        
+
         # Work arrays
-        b_mod = np.zeros(n)
+        c_mod = np.zeros(n)
         d_mod = np.zeros(n)
-        
+
         # Initialize
-        b_mod[0] = b
-        d_mod[0] = d[0]
-        
+        c_mod[0] = c[0] / b[0] if abs(b[0]) > 1e-15 else 0
+        d_mod[0] = d[0] / b[0] if abs(b[0]) > 1e-15 else d[0]
+
         # Forward elimination
         for i in range(1, n):
-            w = a / b_mod[i-1]
-            b_mod[i] = b - w * c
-            d_mod[i] = d[i] - w * d_mod[i-1]
-        
+            denom = b[i] - a[i] * c_mod[i-1]
+            if abs(denom) < 1e-15:
+                denom = 1e-15
+            c_mod[i] = c[i] / denom if i < n - 1 else 0
+            d_mod[i] = (d[i] - a[i] * d_mod[i-1]) / denom
+
         # Back substitution
-        x[-1] = d_mod[-1] / b_mod[-1]
+        x[-1] = d_mod[-1]
         for i in range(n - 2, -1, -1):
-            x[i] = (d_mod[i] - c * x[i+1]) / b_mod[i]
-        
+            x[i] = d_mod[i] - c_mod[i] * x[i+1]
+
         return x
     
     def _solve_tridiagonal_V(

@@ -418,19 +418,19 @@ def create_default_grid(params, T: float, strike: Optional[float] = None) -> Gri
     S0 = params.S0
     K = strike if strike is not None else S0
     
-    # S-bounds (logarithmically centered around max(S0, K))
+    # S-bounds (focused domain around spot/strike for better PDE accuracy)
     S_center = max(S0, K)
-    S_min = S_center * 0.2
-    S_max = S_center * 5.0
+    S_min = S_center * 0.3
+    S_max = S_center * 2.5
     
     # V-bounds
     V_min = 1e-8  # Small positive to avoid singularity
-    V_max = max(5 * params.theta, 5 * params.V0, 1.0)
+    V_max = max(0.5, 5 * params.theta, 5 * params.V0)
     
     # Grid sizes
-    N_S = 100
-    N_V = 50
-    N_t = max(100, int(100 * T))  # Scale with maturity
+    N_S = 90
+    N_V = 45
+    N_t = max(300, int(300 * T))  # Scale with maturity
     
     return Grid(
         S_min=S_min,

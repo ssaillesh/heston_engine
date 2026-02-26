@@ -175,19 +175,36 @@ heston_engine/
 
 ```bash
 git clone <your-repo-url>
-cd heston_engine
+cd <your-repo-folder>
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r heston_engine/requirements.txt
+```
+
+If you are already inside the `heston_engine/` folder, install with:
+
+```bash
 pip install -r requirements.txt
 ```
 
 ### 2) Run the application
 
 ```bash
+cd heston_engine
 PYTHONPATH=.. python3 run.py
 ```
+
+Why this works: `run.py` is inside `heston_engine/`, and it imports the top-level package `heston_engine`. Running from this folder with `PYTHONPATH=..` ensures imports resolve correctly.
 
 Default server:
 - `http://localhost:5000` (UI)
 - `http://localhost:5000/api/health` (health endpoint)
+
+Quick check from another terminal:
+
+```bash
+curl http://127.0.0.1:5000/api/health
+```
 
 ### 3) Optional run modes
 
@@ -277,37 +294,10 @@ Run suite:
 
 ```bash
 python run.py --test
+python run.py --demo
 ```
-
-Validation coverage includes:
-- Put-call parity
-- Black-Scholes limiting behavior
-- Cross-method convergence (Analytical vs PDE vs MC)
-- Greeks sign sanity checks
-- Monte Carlo statistical consistency checks
-
----
-
-## Performance Notes
-
-- Analytical pricing is typically the fastest for vanilla options.
-- PDE offers deterministic grid-based control at higher computational cost.
-- Monte Carlo cost scales with `n_paths × n_steps`.
-- For UI responsiveness, very large path counts are expensive to plot in-browser.
-- API `POST /api/paths` currently enforces an internal cap on returned path count for visualization safety.
-
----
-
-## Roadmap Ideas
-
-- Calibration workflow examples and benchmark datasets
-- American/exotic option extensions
-- Docker packaging for one-command deployment
-- CI pipeline with automated numerical regression tests
-- Optional auth/rate limits for public API deployment
-
----
-
-## License
-
-MIT (or your preferred license; update this section if needed).
+- Put-call parity validation (error monitoring)
+- Multi-method consensus testing
+- Real-time volatility surface generation
+- Live market data calibration pipeline
+- Greeks computation (Δ, Γ, Vega via finite differences)

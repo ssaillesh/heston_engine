@@ -19,3 +19,6 @@ requests>=2.25.0
 
 # Optional: for matplotlib-based plots (not required for web UI)
 matplotlib>=3.5.0
+
+# Optional: benchmark validation vs QuantLib reference implementation
+QuantLib-Python>=1.18
