@@ -212,6 +212,7 @@ def price_option():
         return jsonify(result)
     
     except Exception as e:
+        app.logger.exception(e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -257,6 +258,7 @@ def compute_greeks():
         return jsonify(result)
     
     except Exception as e:
+        app.logger.exception(e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -315,6 +317,7 @@ def implied_vol_surface():
         })
     
     except Exception as e:
+        app.logger.exception(e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -358,6 +361,7 @@ def simulate_paths():
         })
     
     except Exception as e:
+        app.logger.exception(e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -431,6 +435,7 @@ def compare_methods():
         return jsonify(result)
     
     except Exception as e:
+        app.logger.exception(e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -523,6 +528,7 @@ def validate_model():
         return jsonify(results)
     
     except Exception as e:
+        app.logger.exception(e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -553,6 +559,7 @@ def check_data_sources():
             }
         })
     except Exception as e:
+        app.logger.exception(e)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -567,6 +574,7 @@ def get_spot_price(symbol):
     except ImportError as e:
         return jsonify({'success': False, 'error': 'yfinance not installed', 'install': 'pip install yfinance'}), 500
     except Exception as e:
+        app.logger.exception(e)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -581,6 +589,7 @@ def get_dividend(symbol):
     except ImportError as e:
         return jsonify({'success': False, 'error': 'yfinance not installed', 'install': 'pip install yfinance'}), 500
     except Exception as e:
+        app.logger.exception(e)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -597,6 +606,7 @@ def get_historical_vol(symbol):
     except ImportError as e:
         return jsonify({'success': False, 'error': 'yfinance not installed', 'install': 'pip install yfinance'}), 500
     except Exception as e:
+        app.logger.exception(e)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -612,6 +622,7 @@ def get_options(symbol):
     except ImportError as e:
         return jsonify({'success': False, 'error': 'yfinance not installed', 'install': 'pip install yfinance'}), 500
     except Exception as e:
+        app.logger.exception(e)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -626,6 +637,7 @@ def get_vix():
     except ImportError as e:
         return jsonify({'success': False, 'error': 'yfinance not installed', 'install': 'pip install yfinance'}), 500
     except Exception as e:
+        app.logger.exception(e)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -652,6 +664,7 @@ def get_rates():
     except ImportError as e:
         return jsonify({'success': False, 'error': 'fredapi not installed', 'install': 'pip install fredapi'}), 500
     except Exception as e:
+        app.logger.exception(e)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -665,6 +678,7 @@ def get_all_data(symbol):
         result = aggregator.get_all_data(symbol.upper())
         return jsonify(result)
     except Exception as e:
+        app.logger.exception(e)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -678,6 +692,7 @@ def estimate_params(symbol):
         result = aggregator.get_heston_params_estimate(symbol.upper())
         return jsonify(result)
     except Exception as e:
+        app.logger.exception(e)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
